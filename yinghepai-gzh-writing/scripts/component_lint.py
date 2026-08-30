@@ -71,11 +71,11 @@ def main():
         "theme-graphite-minimal.md",
         "common-components.md",
     }
-    refs = [os.path.join(root, "references", f)
+    refs = [os.path.join(root, "references", "design", f)
             for f in COMPONENT_FILES
-            if os.path.isfile(os.path.join(root, "references", f))]
+            if os.path.isfile(os.path.join(root, "references", "design", f))]
     if not refs:
-        print(f"未找到 {root}/references/ 下的组件库文件 "
+        print(f"未找到 {root}/references/design/ 下的组件库文件 "
               f"({', '.join(sorted(COMPONENT_FILES))})")
         sys.exit(1)
 
