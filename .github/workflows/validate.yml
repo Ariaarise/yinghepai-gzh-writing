@@ -1,0 +1,46 @@
+name: skill-ci
+
+on:
+  push:
+    paths:
+      - 'yinghepai-gzh-writing/**'
+  pull_request:
+    paths:
+      - 'yinghepai-gzh-writing/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: 组件检查 (component_lint)
+        working-directory: yinghepai-gzh-writing
+        run: |
+          python3 scripts/component_lint.py references/theme-graphite-minimal.md || true
+
+      - name: HTML 校验 (validate 范本)
+        working-directory: yinghepai-gzh-writing
+        run: |
+          python3 scripts/validate_gzh_html.py references/example-3rd-session.html
+
+      - name: 评测 (run_eval)
+        working-directory: yinghepai-gzh-writing
+        run: |
+          python3 scripts/run_eval.py --json
+
+      - name: 检查关键文件完整性
+        working-directory: yinghepai-gzh-writing
+        run: |
+          test -f SKILL.md || { echo "❌ SKILL.md 缺失"; exit 1; }
+          test -f references/style-anatomy.md || { echo "❌ style-anatomy.md 缺失"; exit 1; }
+          test -f references/fact-sheet-template.md || { echo "❌ fact-sheet-template.md 缺失"; exit 1; }
+          test -f references/theme-graphite-minimal.md || { echo "❌ theme-graphite-minimal.md 缺失"; exit 1; }
+          test -f examples/quality-cases.md || { echo "❌ quality-cases.md 缺失"; exit 1; }
+          test -f evals/evals.md || { echo "❌ evals.md 缺失"; exit 1; }
+          test -f scripts/run_eval.py || { echo "❌ run_eval.py 缺失"; exit 1; }
+          echo "✅ 所有关键文件齐全"
