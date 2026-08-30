@@ -14,6 +14,10 @@ tags: [yinghepai, gzh, 公众号, writing, 写作规范, 排版, 自包含]
 ```
 yinghepai-gzh-writing/
 ├── SKILL.md                          # 本文件（写作方法论 + 排版规范）
+├── examples/
+│   └── quality-cases.md              # 好坏样例对照（好=已发布片段；坏=实际犯过的错）
+├── evals/
+│   └── evals.md                      # 最小评测集（3个case，改skill后跑一遍验证）
 ├── references/
 │   ├── theme-graphite-minimal.md     # 石墨极简主题组件库（排版时从这取组件）
 │   ├── common-components.md          # 通用组件（引言卡/数据卡/药丸标签等）
@@ -147,7 +151,16 @@ END 线（不署名，文章到此结束）
 - 让另一位小伙伴（非原作者）按本 skill 写一篇，对比风格是否一致
 - 用完后如果发现需要调整的地方，记录到本文档「更新日志」部分，让规范持续演进
 
+## 第六步：用样例校准 + 评测验证（借鉴 TRAE skill 规范）
+
+1. **写之前/写完后对照** `examples/quality-cases.md`：
+   - 好样例校准文风/结构/细节密度
+   - 坏样例自查：有没有锁数量、官腔、写错名、内容单薄、markdown 符号
+2. **修改 skill 后跑** `evals/evals.md` 评测集（3 个 case），确认没改坏原本会做的事情
+3. **遇到失败点 → 追加成 gotcha**：把真实失败写进 Common Pitfalls 或 examples 坏样例，形成迭代飞轮
+
 ## 更新日志
 
+- 2026-08-30 v1.2：借鉴 TRAE skill 攻略——新增 examples/（好坏样例对照，含真实反例）和 evals/（最小评测集）；自包含化完成
 - 2026-08-30 v1.1：自包含化——打包石墨极简组件库/校验脚本/三期范本；署名规范「一律不署名」；「阿梨同款」改为「硬核派公众号同款」
 - 2026-08-25 v1.0：创建（沉淀硬核派写作方法论）
