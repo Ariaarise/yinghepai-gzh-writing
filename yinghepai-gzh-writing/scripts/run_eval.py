@@ -73,17 +73,17 @@ CASES = [
 
 def check_fact_sheet():
     """FACT SHEET 机制存在且被 SKILL 引用"""
-    ref = os.path.join(SKILL_ROOT, "references", "fact-sheet-template.md")
+    ref = os.path.join(SKILL_ROOT, "references", "source", "fact-sheet.md")
     skill = os.path.join(SKILL_ROOT, "SKILL.md")
     ok_ref = os.path.exists(ref)
     ok_skill = False
     if os.path.exists(skill):
-        ok_skill = "fact-sheet" in open(skill, encoding="utf-8").read()
+        ok_skill = "FACT SHEET" in open(skill, encoding="utf-8").read()
     return ok_ref and ok_skill, "FACT SHEET 模板存在 + SKILL 引用"
 
 def check_style_anatomy():
     """文风解剖存在"""
-    ref = os.path.join(SKILL_ROOT, "references", "style-anatomy.md")
+    ref = os.path.join(SKILL_ROOT, "references", "writing", "style-anatomy.md")
     return os.path.exists(ref), "style-anatomy.md 存在"
 
 def check_html_valid(html_path=None):
@@ -104,7 +104,7 @@ def check_banned_words(text=None):
     """禁词检查"""
     if text is None:
         # 检查 SKILL/examples 是否包含禁词示例（作为自我检查）
-        anatomy = os.path.join(SKILL_ROOT, "references", "style-anatomy.md")
+        anatomy = os.path.join(SKILL_ROOT, "references", "writing", "style-anatomy.md")
         if os.path.exists(anatomy):
             content = open(anatomy, encoding="utf-8").read()
             return "禁词表" in content and "赋能" in content, "style-anatomy 含禁词表"
@@ -145,7 +145,7 @@ def check_component_ratio():
 
 def check_ai_smell():
     """AI 味检测存在"""
-    anatomy = os.path.join(SKILL_ROOT, "references", "style-anatomy.md")
+    anatomy = os.path.join(SKILL_ROOT, "references", "writing", "style-anatomy.md")
     if os.path.exists(anatomy):
         return "AI 味" in open(anatomy, encoding="utf-8").read(), "style-anatomy 含 AI 味检测"
     return False, "style-anatomy.md 缺失"
