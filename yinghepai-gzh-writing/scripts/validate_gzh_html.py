@@ -97,41 +97,59 @@ class LeafChecker(HTMLParser):
 
 
 def validate(html, name="<input>"):
-    errors, warnings = [], []
+    """返回 (categories, span_leaf_count)：
+    categories = {
+        "platform": [(level, msg), ...],   # 平台兼容（script/div/class/grid…）
+        "style":    [(level, msg), ...],   # 样式保真（span leaf 未包裹）
+        "typography": [(level, msg), ...], # 排版规范（半角标点/英文引号）
+        "brand":    [(level, msg), ...],   # 品牌规则（预留：品牌黄数量等）
+    }
+    """
+    categories = {"platform": [], "style": [], "typography": [], "brand": []}
 
+    # ── Platform Compatibility（平台兼容性）────────────────
     for rx, level, msg in FORBIDDEN:
         hits = len(rx.findall(html))
         if hits:
-            (errors if level == "ERROR" else warnings).append(
-                f"{msg}（命中 {hits} 处）")
+            categories["platform"].append(
+                (level, f"{msg}（命中 {hits} 处）"))
 
+    # ── Style Preservation（样式保真）──────────────────────
     checker = LeafChecker()
     try:
         checker.feed(html)
     except Exception as e:  # 容错：解析失败不致命，只提示
-        warnings.append(f"HTML 解析中断: {e}")
+        categories["typography"].append(("WARNING", f"HTML 解析中断: {e}"))
 
     has_cjk = bool(CJK.search(html))
     if has_cjk and checker.span_leaf_count == 0:
-        errors.append("全文没有任何 <span leaf=\"\"> 包裹——"
-                      "粘贴到公众号后样式会大面积丢失")
+        categories["style"].append(
+            ("ERROR", "全文没有任何 <span leaf=\"\"> 包裹——"
+                      "粘贴到公众号后样式会大面积丢失"))
     elif checker.unwrapped:
-        # 升级：正文中文文本未包裹 = ERROR（不再只是 WARNING）。
-        # 原因：span leaf 是公众号粘贴后保持样式的关键约束，
-        # 未包裹文本在粘贴后样式必然丢失，属于「会坏」而非「可能坏」。
+        # 硬规则：正文中文未包裹 = ERROR（span leaf 是样式保真的关键，
+        # 未包裹文本粘贴后样式必然丢失，属于「会坏」而非「可能坏」）
         sample = "；".join(f"「{s}」(在 <{p}> 内)"
                            for s, p in checker.unwrapped[:5])
-        errors.append(
-            f"{len(checker.unwrapped)} 处正文中文文本未被 <span leaf> 包裹，"
-            f"粘贴后样式会丢失，必须全部包裹。例：{sample}")
+        categories["style"].append(
+            ("ERROR", f"{len(checker.unwrapped)} 处正文中文文本未被 "
+                      f"<span leaf> 包裹，粘贴后样式会丢失，必须全部包裹。例：{sample}"))
 
+    # ── Typography（排版规范）──────────────────────────────
     if checker.half_punct:
         sample = "；".join(f"「{s}」" for s in checker.half_punct[:5])
-        warnings.append(
-            f"{len(checker.half_punct)} 处正文疑似半角标点/英文引号，应改中文全角"
-            f"（代码块内不计）。例：{sample}")
+        categories["typography"].append(
+            ("WARNING", f"{len(checker.half_punct)} 处正文疑似半角标点/英文引号，"
+                        f"应改中文全角（代码块内不计）。例：{sample}"))
 
-    return errors, warnings, checker.span_leaf_count
+    # ── Brand（品牌规则）───────────────────────────────────
+    # 预留：品牌黄 #FFFB00 数量检查（≤3 处）
+    brand_yellow = len(re.findall(r"#FFFB00", html, re.I))
+    if brand_yellow > 3:
+        categories["brand"].append(
+            ("WARNING", f"品牌黄 #FFFB00 出现 {brand_yellow} 处（规范 ≤3 处）"))
+
+    return categories, checker.span_leaf_count
 
 
 def main():
@@ -148,24 +166,39 @@ def main():
             html = f.read()
         name = args.file
 
-    errors, warnings, leaf_n = validate(html, name)
+    categories, leaf_n = validate(html, name)
 
     print(f"📋 公众号 HTML 合规校验: {name}")
     print(f"   span leaf 包裹: {leaf_n} 处")
-    if errors:
-        print(f"\n❌ ERROR ×{len(errors)}（必须修复，否则粘贴后失效）:")
-        for e in errors:
-            print(f"   • {e}")
-    if warnings:
-        print(f"\n⚠️  WARNING ×{len(warnings)}（建议检查）:")
-        for w in warnings:
-            print(f"   • {w}")
-    if not errors and not warnings:
-        print("\n✅ 完全合规，可直接粘贴到公众号编辑器")
-    elif not errors:
-        print("\n✅ 无致命问题，可粘贴（warning 请人工确认）")
 
-    sys.exit(1 if errors else 0)
+    # 分类输出：Platform / Style / Typography / Brand
+    labels = {
+        "platform": "Platform Compatibility（平台兼容）",
+        "style": "Style Preservation（样式保真）",
+        "typography": "Typography（排版规范）",
+        "brand": "Brand Rules（品牌规则）",
+    }
+    all_errors = []
+    has_output = False
+    for cat in ["platform", "style", "typography", "brand"]:
+        items = categories[cat]
+        if not items:
+            continue
+        has_output = True
+        print(f"\n{'❌' if any(lv == 'ERROR' for lv, _ in items) else '⚠️'} {labels[cat]} ×{len(items)}:")
+        for lv, msg in items:
+            mark = "🔴" if lv == "ERROR" else "🟡"
+            print(f"   {mark} [{lv}] {msg}")
+            if lv == "ERROR":
+                all_errors.append(msg)
+
+    if not all_errors:
+        if has_output:
+            print("\n✅ 无致命问题，可粘贴（WARNING 请人工确认）")
+        else:
+            print("\n✅ 完全合规，可直接粘贴到公众号编辑器")
+
+    sys.exit(1 if all_errors else 0)
 
 
 if __name__ == "__main__":
