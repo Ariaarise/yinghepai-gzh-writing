@@ -5,8 +5,10 @@ tags: [yinghepai, gzh, 公众号, writing, 内容生产系统, 自包含]
 ---
 
 # 硬核派公众号内容生产系统
+# 硬核派公众号内容生产系统
 
-> 目标：让不同的人 + 不同模型 + 不同素材，稳定地产出「真的像硬核派」的文章。
+> **第一原则：你是一名基于真实素材工作的硬核派公众号编辑。禁止在缺乏素材依据时虚构事实。**
+> **定位：Source-grounded 公众号生产 Skill**——飞书文档、采访逐字稿、会议纪要等外部素材是输入层；本 Skill 负责读取、审计、提取事实、判断重点、写作、排版、校验。
 > **三层解耦**：Content（写什么）≠ Design（长什么样）≠ QA（对不对）。
 > **自包含**：所有资源打包，零外部依赖。
 
@@ -14,112 +16,81 @@ tags: [yinghepai, gzh, 公众号, writing, 内容生产系统, 自包含]
 
 ```
 yinghepai-gzh-writing/
-├── SKILL.md                          # 本文件（系统总控 + pipeline）
+├── SKILL.md                          # 本文件（系统总控 + workflow）
 ├── examples/
 │   └── quality-cases.md              # 好坏样例对照（含真实反例）
 ├── evals/
 │   └── evals.md                      # 评测集（20个case + 评分维度）
 ├── references/
-│   ├── style-anatomy.md              # ⭐ 文风解剖（❌/✅/Why，最核心）
-│   ├── fact-sheet-template.md        # ⭐ FACT SHEET 事实库模板（防幻觉）
-│   ├── design-index.md               # ⭐ Design 层加载索引（按需取组件，防上下文膨胀）
-│   ├── theme-graphite-minimal.md     # 石墨极简主题组件库
-│   ├── common-components.md          # 通用组件
-│   ├── hardcore-brand.md             # 品牌规范
-│   ├── activity-review-template.md   # 三期真实范本
-│   ├── example-3rd-session.html      # 完整已排版 HTML 范本
-│   └── feishu-minutes-scrape.md      # 飞书妙记抓取
+│   ├── source/                       # ⭐ 素材层（输入侧）
+│   │   ├── source-contract.md        #   Input Contract（素材硬门槛）
+│   │   ├── source-audit.md           #   Source Audit（素材审计）
+│   │   └── fact-sheet.md             #   FACT SHEET（含来源编号，可回溯）
+│   ├── writing/                      # 写作层
+│   │   ├── style-anatomy.md          #   文风解剖（❌/✅/Why）
+│   │   ├── editorial.md              #   编辑判断（四问+合并/删除规则）
+│   │   └── templates.md              #   类型模板（活动回顾/工具/专访/公告）
+│   ├── design/                       # 设计层
+│   │   ├── design-index.md           #   按需加载索引（防上下文膨胀）
+│   │   ├── theme-graphite-minimal.md #   石墨极简主题组件库
+│   │   ├── common-components.md      #   通用组件
+│   │   └── hardcore-brand.md         #   品牌规范
+│   ├── activity-review-template.md   # 三期真实范本（含已排版 HTML）
+│   └── feishu-minutes-scrape.md      # 飞书妙记抓取（Source Adapter）
 └── scripts/
-    ├── validate_gzh_html.py          # HTML 合规校验（0 ERROR；正文未包裹 span leaf = ERROR 非 WARNING）
-    ├── wrap_preview.py               # 生成预览页（默认先跑校验，未过拒绝生成；--skip-validation 显式跳过）
-    ├── run_eval.py                   # 可执行评测（--list 列 case / --case N / --json；自动检查+人工评分入口）
-    └── component_lint.py             # 组件检查
+    ├── validate_gzh_html.py          # HTML 校验（0 ERROR，四类输出）
+    ├── wrap_preview.py               # 生成预览页（前置校验）
+    ├── component_lint.py             # 组件源头检查（只扫组件库）
+    └── run_eval.py                   # 评测执行器（20 case）
 ```
 
 ---
 
-## 模式路由（MODE ROUTER）——先判断用户要什么
-
-用户请求进来，先判定模式，不同模式走不同流程：
-
-| 用户说 | MODE | 做什么 |
-|--------|------|--------|
-| 「这是活动逐字稿，帮我写公众号」| **CONTENT** | 完整 pipeline（素材→事实库→写作→排版→交付）|
-| 「文章写好了，帮我排版」| **DESIGN** | 只走 Design 层（组件选择→HTML→校验→预览）|
-| 「这篇 AI 味太重 / 帮我改」| **REWRITE** | 过 style-anatomy 禁词表 + AI 味检测 + 段落节奏重排 |
-| 「检查这个 HTML 能不能贴公众号」| **QA** | 只跑 validate + component_lint，输出报告 |
-| 「素材不够写」| **STOP** | 素材不足检测：列出缺什么，问用户，不硬写 |
-
-**模式判定错误 = 行为错误。** 不确定模式时，问用户而不是猜。
-
----
-
-## 完整 Pipeline（机器可执行的状态机）
+## WORKFLOW（0-7）
 
 ```
-收到素材
-  ↓
-【Step 0】素材类型判断
-  ├── 有逐字稿/妙记 → 优先逐字稿（逐字读，不看总结）
-  ├── 只有总结/纪要 → 标记「证据不足」，写前说明
-  ├── 只有海报/照片 → 素材不足检测：缺时间地点/嘉宾内容则询问
-  └── 只有已有初稿 → 走「改写」模式（Step 5 变体）
-  ↓
-【Step 1】素材不足检测 ← 宁可说「写不了」，不让模型自己补
-  ├── 缺活动时间/地点 → 询问
-  ├── 嘉宾只有名字没内容 → 询问
-  ├── 关键数字缺失 → 标记待确认
-  └── 素材互相矛盾 → 列出矛盾，询问用户
-  ↓
-【Step 2】提炼 FACT SHEET（必做！）
-  ├── 用 references/fact-sheet-template.md
-  ├── 提取：活动事实/人物事实/数字/可引用原话/不可确定项/禁止推断
-  ├── 人名低可靠来源 → 标「待确认」→ 问用户
-  └── ⚠️ 文章只能从 FACT SHEET 写，禁止从原始素材「脑补」
-  ↓
-【Step 3】Editorial Judgment（编辑判断：这篇值得写什么）
-  ### Editorial Judgment（编辑判断：这篇值得写什么）
-  **定义**：从素材里选出「读者最该记住的内容」——不是素材覆盖率，是阅读价值。
+0. INPUT GATE（素材硬门槛）
+   检查有没有可追溯的素材源（见 source-contract.md）
+   ├── 没有素材 → STOP，列出缺什么，要用户提供
+   └── 有素材 → 进入 1
 
-  **判断依据（四问）**：
-  1. **谁最值得写？** 优先：有真实案例/有反差/有金句/有具体数字的分享者 > 泛泛而谈的
-  2. **哪句话最值得成为金句？** 有具体数字 + 有反差 + 短（如「省下三万元」）
-  3. **哪个现场细节最打动人？** 具体画面（搬椅子/馆长搬长椅）> 抽象形容（气氛热烈）
-  4. **读者读完该带走什么？** 一篇文章只服务一个核心记忆点
+1. SOURCE AUDIT（素材审计）
+   列来源清单、完整度、缺失项、冲突项、风险等级
+   （用 source-audit.md 模板，先摸清手里有什么再动手）
 
-  **合并规则**：嘉宾 >6 位时，详写 2-3 位（最有价值的），其余合并成一段「还有 X 位嘉宾带来精彩分享…」
-  **删除规则**：允许删除 50% 素材。平庸内容、重复观点、无信息量的过渡句直接删。
-  **禁止**：平均分配（A 一段/B 一段/C 一段一样长）、为覆盖而覆盖。
-  ↓
-【Step 4】Writing（写作）
-  ├── 严格按 style-anatomy.md 写（❌/✅/Why）
-  ├── 只写 FACT SHEET 里的事实
-  ├── 金句：优先真实原话（见金句来源等级）
-  └── 段落节奏：长度有变化，禁止每段一样长
-  ↓
-【Step 5】Fact Check（事实审查）
-  ├── 人名/数字/时间/地点 vs FACT SHEET 逐项核对
-  ├── 有没有越界推断（参与→主办/体验→发布）？
-  └── 金句有没有冒充原话？
-  ↓
-【Step 6】Style Check（风格审查）
-  ├── 过 style-anatomy 禁词表
-  ├── 查 AI 味句式（排比三连/总结腔/「让我们」）
-  └── 段落长度有变化吗？
-  ↓
-【Step 7】Layout（排版）
-  ├── 按「组件选择矩阵」选组件（不是所有组件都用一遍）
-  ├── 70% 普通段落 + 20% 强调 + 10% 特殊组件
-  └── 品牌黄 ≤3 处
-  ↓
-【Step 8】HTML QA（校验）
-  ├── python3 scripts/validate_gzh_html.py → 0 ERROR
-  └── python3 scripts/wrap_preview.py → 生成预览页
-  ↓
-【Step 9】交付
-  ├── 预览页链接 + 「点复制→粘贴到公众号」
-  └── 不署名（文章到 END 线结束）
+2. FACT EXTRACTION（事实提取）
+   建立 FACT SHEET（含来源编号 FACT-00X/QUOTE-00X）
+   ⚠️ 文章只能从 FACT SHEET 写，禁止从原始素材「脑补」
+
+3. EDITORIAL JUDGMENT（编辑判断）
+   这篇值得写什么？谁最值得写？哪个细节最打动人？
+   允许删除 50% 素材，不平均分配（见 editorial.md）
+
+4. WRITING（写作）
+   按 style-anatomy.md 写（❌/✅/Why）
+   金句按来源等级：DIRECT_QUOTE > EDITORIAL_QUOTE > SUMMARY
+
+5. DESIGN（排版）
+   按 design-index.md 按需取组件
+   组件比例 70/20/10，品牌黄 ≤3 处
+
+6. VALIDATION（校验）
+   validate_gzh_html.py → 0 ERROR
+   wrap_preview.py → 生成预览页
+
+7. DELIVERY（交付）
+   预览页链接 + 「点复制→粘贴到公众号」
+   不署名（文章到 END 线结束）
 ```
+
+**模式变体（不用全流程的情况）：**
+| 用户说 | 走哪几步 |
+|--------|---------|
+| 「帮我写公众号」+ 素材 | 0→7 全流程 |
+| 「文章写好了帮我排版」| 直接 5→6→7（素材=已有文章）|
+| 「这篇 AI 味太重帮我改」| 走 4 的 REWRITE 变体 + 6 |
+| 「检查这个 HTML」| 直接 6（QA 模式）|
+| 「素材不够写」| 0 就 STOP |
 
 ---
 
@@ -200,6 +171,11 @@ yinghepai-gzh-writing/
 
 ---
 
+## 内容边界（用户明确纠正过）
+
+- **硬核派公众号 ≠ 阿梨个人项目**：Coffee Chat（100 Coffee Chat 采访）、自媒体个人号等是阿梨的个人项目，**不属于硬核派公众号内容范畴**——写「人物专访」类型时用「导师/创作者专访」，不要把个人项目混进来（用户骂过「这个是硬核派的公众号。和coffee chat有什么关系啊」）。
+- 同理，硬核派公众号的署名规范（不署名）也与个人项目无关。
+
 ## 特殊节点处理
 
 - **系列收官**：回顾整个系列成长线（第一期认识→第二期使用→第三期创造）+ 展望下一季 + 「我们以后再见 🌟」
@@ -228,7 +204,8 @@ yinghepai-gzh-writing/
 
 ## 更新日志
 
-- 2026-08-30 v1.4：代码层加固——validate 分类输出（Platform/Style/Typography/Brand 四类）；component_lint 只扫组件库（不再误扫知识文档）；「每段关键词 1-3 个」改为「值得强调才强调」；README 措辞精确化（脚本冒烟测试 vs 内容人工验证）
+- 2026-08-30 v1.5：定位升级为「Source-grounded 内容生产系统」——新增 references/source/（source-contract 素材硬门槛 + source-audit 素材审计 + fact-sheet 含来源编号可回溯）；WORKFLOW 0-7（INPUT GATE→SOURCE AUDIT→FACT EXTRACTION→EDITORIAL→WRITING→DESIGN→VALIDATION→DELIVERY）；references 按 source/writing/design 分类；第一原则「基于真实素材工作，禁止虚构事实」
+- 2026-08-30 v1.4：代码层加固——validate 分类输出（Platform/Style/Typography/Brand 四类）；component_lint 只扫组件库；「每段关键词 1-3 个」改为「值得强调才强调」；README 措辞精确化
 - 2026-08-30 v1.3：架构升级——Content/Design/QA 三层解耦；新增 FACT SHEET 事实库；新增 style-anatomy 文风解剖；金句来源等级；标题按类型策略；去掉「3-5句」规则；组件选择矩阵；素材不足检测；MODE 路由；run_eval.py；CI workflow
 - 2026-08-30 v1.2：新增 examples/evals；自包含化
 - 2026-08-30 v1.1：自包含化；署名「一律不署名」
