@@ -65,9 +65,18 @@ def lint_file(path):
 
 def main():
     root = sys.argv[1] if len(sys.argv) > 1 else "."
-    refs = sorted(glob.glob(os.path.join(root, "references", "*.md")))
+    # 只扫真正的组件库（含 ```html 代码块的文件），不扫品牌规范/范本/指南
+    # （那些是知识文档，不是组件源头；扫描它们会产生误报）
+    COMPONENT_FILES = {
+        "theme-graphite-minimal.md",
+        "common-components.md",
+    }
+    refs = [os.path.join(root, "references", f)
+            for f in COMPONENT_FILES
+            if os.path.isfile(os.path.join(root, "references", f))]
     if not refs:
-        print(f"未找到 {root}/references/*.md")
+        print(f"未找到 {root}/references/ 下的组件库文件 "
+              f"({', '.join(sorted(COMPONENT_FILES))})")
         sys.exit(1)
 
     total_err = total_warn = clean = 0
