@@ -30,8 +30,9 @@ yinghepai-gzh-writing/
 │   ├── example-3rd-session.html      # 完整已排版 HTML 范本
 │   └── feishu-minutes-scrape.md      # 飞书妙记抓取
 └── scripts/
-    ├── validate_gzh_html.py          # HTML 合规校验（0 ERROR）
-    ├── wrap_preview.py               # 生成预览页
+    ├── validate_gzh_html.py          # HTML 合规校验（0 ERROR；正文未包裹 span leaf = ERROR 非 WARNING）
+    ├── wrap_preview.py               # 生成预览页（默认先跑校验，未过拒绝生成；--skip-validation 显式跳过）
+    ├── run_eval.py                   # 可执行评测（--list 列 case / --case N / --json；自动检查+人工评分入口）
     └── component_lint.py             # 组件检查
 ```
 
@@ -176,8 +177,8 @@ yinghepai-gzh-writing/
 ### 排版硬规范
 - 品牌黄 `#FFFB00` 全篇 ≤3 处
 - 每段文字用 `<span leaf="">` 包裹
-- 石墨下划线标记关键词（1-3 个/段）
-- 从组件库取组件，不手写样式
+- **石墨下划线：信息密度高、值得强调的关键词才做下划线；不要为了排版强行加**（禁止每段机械地加 1-3 个，那会变成「AI 给每段加装修」的观感）
+- 从组件库取组件，不手写样式（按 design-index.md 按需加载）
 
 ---
 
@@ -220,13 +221,15 @@ yinghepai-gzh-writing/
 
 ## Verification
 
-- 跑 evals/evals.md 评测集（20 case + 评分维度）
+- 跑 `python3 scripts/run_eval.py`（可执行评测：20 case 自动检查 + 人工评分维度），不用手工核对 evals.md
 - 对照 QA 清单逐项自查
 - 修改 skill 后必须重跑评测，确认没改坏
+- 推送 GitHub 前自查「文档宣称 = 实际存在」：SKILL.md 提到的每个 reference/script 都要有真实文件（评审会逐文件核对）
 
 ## 更新日志
 
-- 2026-08-30 v1.3：架构升级——Content/Design/QA 三层解耦；新增 FACT SHEET 事实库；新增 style-anatomy 文风解剖；金句来源等级；标题按类型策略；去掉「3-5句」规则；组件选择矩阵；素材不足检测
+- 2026-08-30 v1.4：代码层加固——validate 分类输出（Platform/Style/Typography/Brand 四类）；component_lint 只扫组件库（不再误扫知识文档）；「每段关键词 1-3 个」改为「值得强调才强调」；README 措辞精确化（脚本冒烟测试 vs 内容人工验证）
+- 2026-08-30 v1.3：架构升级——Content/Design/QA 三层解耦；新增 FACT SHEET 事实库；新增 style-anatomy 文风解剖；金句来源等级；标题按类型策略；去掉「3-5句」规则；组件选择矩阵；素材不足检测；MODE 路由；run_eval.py；CI workflow
 - 2026-08-30 v1.2：新增 examples/evals；自包含化
 - 2026-08-30 v1.1：自包含化；署名「一律不署名」
 - 2026-08-25 v1.0：创建
