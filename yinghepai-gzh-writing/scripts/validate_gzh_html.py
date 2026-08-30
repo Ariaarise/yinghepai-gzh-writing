@@ -116,11 +116,14 @@ def validate(html, name="<input>"):
         errors.append("全文没有任何 <span leaf=\"\"> 包裹——"
                       "粘贴到公众号后样式会大面积丢失")
     elif checker.unwrapped:
+        # 升级：正文中文文本未包裹 = ERROR（不再只是 WARNING）。
+        # 原因：span leaf 是公众号粘贴后保持样式的关键约束，
+        # 未包裹文本在粘贴后样式必然丢失，属于「会坏」而非「可能坏」。
         sample = "；".join(f"「{s}」(在 <{p}> 内)"
                            for s, p in checker.unwrapped[:5])
-        warnings.append(
-            f"{len(checker.unwrapped)} 处中文文本未被 <span leaf> 包裹，"
-            f"样式可能丢失。例：{sample}")
+        errors.append(
+            f"{len(checker.unwrapped)} 处正文中文文本未被 <span leaf> 包裹，"
+            f"粘贴后样式会丢失，必须全部包裹。例：{sample}")
 
     if checker.half_punct:
         sample = "；".join(f"「{s}」" for s in checker.half_punct[:5])
